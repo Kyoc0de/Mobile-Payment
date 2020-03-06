@@ -1,5 +1,6 @@
 package com.kyo.pay.service.impl;
 
+import com.google.gson.Gson;
 import com.kyo.pay.dao.PayInfoMapper;
 import com.kyo.pay.enums.PayPlatformEnum;
 import com.kyo.pay.pojo.PayInfo;
@@ -13,6 +14,7 @@ import com.lly835.bestpay.model.PayResponse;
 import com.lly835.bestpay.service.BestPayService;
 import com.lly835.bestpay.service.impl.BestPayServiceImpl;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.core.AmqpTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -22,11 +24,16 @@ import java.math.BigDecimal;
 @Service
 public class PayServiceImpl implements IPayService {
 
+    private final static String QUEUE_PAY_NOTIFY ="payNotify";
+
     @Autowired
     private BestPayService bestPayService;
 
     @Autowired
     private PayInfoMapper payInfoMapper;
+
+    @Autowired
+    private AmqpTemplate amqpTemplate;
 
     @Override
     public PayResponse create(String orderId, BigDecimal amount, BestPayTypeEnum bestPayTypeEnum) {
@@ -80,6 +87,7 @@ public class PayServiceImpl implements IPayService {
             payInfoMapper.updateByPrimaryKeySelective(payInfo);
         }
 
+        amqpTemplate.convertAndSend(QUEUE_PAY_NOTIFY,new Gson().toJson(payInfo));
 
         //4.通知微信结束通知
 
